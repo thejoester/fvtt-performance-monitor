@@ -1,4 +1,5 @@
 {
+	"id": "fvtt-performance-monitor",
 	"name": "fvtt-performance-monitor",
 	"title": "Performance Monitor",
 	"description": "Logs and analyzes Foundry module performance, hook activity, and system load over time.",
