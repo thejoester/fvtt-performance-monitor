@@ -86,7 +86,9 @@ function showDialog() {
 
 function getHooksPerModule() {
 	const map = {};
-	for (const [hook, fns] of Object.entries(Hooks._hooks)) {
+	const hooks = Hooks?._hooks ?? {};
+	for (const [hookName, fns] of Object.entries(hooks)) {
+		if (!Array.isArray(fns)) continue;
 		for (const fn of fns) {
 			const mod = fn?.__moduleName || fn?.module || "unknown";
 			map[mod] = (map[mod] || 0) + 1;
