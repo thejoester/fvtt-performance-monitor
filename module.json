@@ -1,0 +1,26 @@
+{
+	"name": "fvtt-performance-monitor",
+	"title": "Performance Monitor",
+	"description": "Logs and analyzes Foundry module performance, hook activity, and system load over time.",
+	"version": "0.1.0",
+	"author": "Gizmo + ChatGPT",
+	"esmodules": ["performance-monitor.js"],
+	"compatibility": {
+		"minimum": "12.331",
+		"verified": "12.331"
+	},
+	"scripts": [],
+	"styles": [],
+	"languages": [],
+	"packs": [],
+	"relationships": {
+		"requires": [],
+		"recommends": ["lib-wrapper", "socketlib"]
+	},
+	"manifest": "https://yourdomain.com/modules/fvtt-performance-monitor/module.json",
+	"download": "https://yourdomain.com/modules/fvtt-performance-monitor/fvtt-performance-monitor-v0.1.0.zip",
+	"license": "MIT",
+	"readme": "https://yourdomain.com/modules/fvtt-performance-monitor/README.md",
+	"bugs": "https://yourdomain.com/modules/fvtt-performance-monitor/issues",
+	"changelog": "https://yourdomain.com/modules/fvtt-performance-monitor/changelog.md"
+}
