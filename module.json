@@ -17,10 +17,10 @@
 		"requires": [],
 		"recommends": ["lib-wrapper", "socketlib"]
 	},
-	"manifest": "https://yourdomain.com/modules/fvtt-performance-monitor/module.json",
-	"download": "https://yourdomain.com/modules/fvtt-performance-monitor/fvtt-performance-monitor-v0.1.0.zip",
+	"manifest": "https://github.com/thejoester/fvtt-performance-monitor/releases/latest/download/module.json",
+	"download": "https://github.com/thejoester/fvtt-performance-monitor/releases/download/0.1.0/fvtt-performance-monitor-v0.1.0.zip",
 	"license": "MIT",
-	"readme": "https://yourdomain.com/modules/fvtt-performance-monitor/README.md",
-	"bugs": "https://yourdomain.com/modules/fvtt-performance-monitor/issues",
-	"changelog": "https://yourdomain.com/modules/fvtt-performance-monitor/changelog.md"
+	"readme": "https://github.com/thejoester/fvtt-performance-monitor/README.md",
+	"bugs": "https://github.com/thejoester/fvtt-performance-monitor/issues",
+	"changelog": "https://github.com/thejoester/fvtt-performance-monitor/changelog.md"
 }
