@@ -35,7 +35,7 @@ jobs:
           download: https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/fvtt-performance-monitor.zip
 
       - name: Create Module Archive
-        run: zip -r fvtt-performance-monitor.zip module.json README.md LICENSE.md changelog.md performance-monitor.js
+        run: zip -r fvtt-performance-monitor.zip module.json README.md LICENSE.md CHANGELOG.md performance-monitor.js
 
       - name: Query Changelog
         uses: release-flow/keep-a-changelog-action@v3
