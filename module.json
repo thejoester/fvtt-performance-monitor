@@ -3,19 +3,32 @@
 	"name": "fvtt-performance-monitor",
 	"title": "Performance Monitor",
 	"description": "Logs and analyzes Foundry module performance, hook activity, and system load over time.",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"authors": [
-		{ "name": "Gizmo + ChatGPT" }
-	],
+        {
+            "name": "The Joester",
+            "discord": "thejoester",
+			"url": "https://github.com/thejoester",
+            "flags": {}
+        }
+    ],
 	"esmodules": ["performance-monitor.js"],
 	"compatibility": {
-		"minimum": "12.331",
-		"verified": "12.331"
+		"minimum": "12",
+		"verified": "12"
 	},
-	"scripts": [],
-	"styles": [],
-	"languages": [],
-	"packs": [],
+	"packs": [
+        {
+            "name": "performance-monitor-macros",
+            "label": "Performance Monitor Macros",
+            "path": "packs/performance-monitor-macros",
+            "type": "Macro",
+            "ownership": {
+                "PLAYER": "OBSERVER",
+                "ASSISTANT": "OWNER"
+            },
+        }
+    ],
 	"relationships": {
 		"recommends": [
 			{ "id": "lib-wrapper" },
@@ -23,7 +36,7 @@
 		]
 	},
 	"manifest": "https://github.com/thejoester/fvtt-performance-monitor/releases/latest/download/module.json",
-	"download": "https://github.com/thejoester/fvtt-performance-monitor/releases/download/0.1.0/fvtt-performance-monitor.zip",
+	"download": "https://github.com/thejoester/fvtt-performance-monitor/releases/download/0.1.2/fvtt-performance-monitor.zip",
 	"license": "MIT",
 	"readme": "https://github.com/thejoester/fvtt-performance-monitor/README.md",
 	"bugs": "https://github.com/thejoester/fvtt-performance-monitor/issues",
