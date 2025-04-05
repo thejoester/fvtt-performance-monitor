@@ -1,5 +1,4 @@
 Hooks.once("init", () => {
-	// Register the macro command
 	CONFIG.ChatCommands ??= {};
 	CONFIG.ChatCommands.perfReport = {
 		name: "perfReport",
@@ -13,22 +12,24 @@ Hooks.once("ready", () => {
 	game.perfMonitor = {
 		showDialog,
 		generateReport,
-		exportReportAsJSON
+		exportReportAsJSON,
+		generateSnapshot
 	};
 });
 
-function generateReport() {
+async function generateReport() {
 	const report = {
 		timestamp: new Date().toISOString(),
 		hooksPerModule: getHooksPerModule(),
 		libWrapperPatches: getLibWrapperPatches(),
-		socketlibFunctions: getSocketlibFunctions()
+		socketlibFunctions: getSocketlibFunctions(),
+		snapshot: await generateSnapshot()
 	};
 	return report;
 }
 
-function showDialog() {
-	const report = generateReport();
+async function showDialog() {
+	const report = await generateReport();
 
 	const buildContent = (report) => {
 		let html = `<div class="perf-report-dialog" style="max-height: 60vh; overflow-y: auto;">`;
@@ -39,15 +40,33 @@ function showDialog() {
 		}
 		html += `</ul>`;
 
-		html += `<h2>libWrapper Patches</h2><ul>`;
-		for (const [mod, count] of Object.entries(report.libWrapperPatches)) {
-			html += `<li><strong>${mod}</strong>: ${count}</li>`;
+		html += `<h2>libWrapper Patches</h2>`;
+		if (Object.keys(report.libWrapperPatches).length > 0) {
+			html += `<ul>`;
+			for (const [mod, count] of Object.entries(report.libWrapperPatches)) {
+				html += `<li><strong>${mod}</strong>: ${count}</li>`;
+			}
+			html += `</ul>`;
+		} else {
+			html += `<p><em>libWrapper did not expose patch info.</em></p>`;
 		}
-		html += `</ul>`;
 
 		html += `<h2>Socketlib Registrations</h2><ul>`;
 		for (const [mod, count] of Object.entries(report.socketlibFunctions)) {
 			html += `<li><strong>${mod}</strong>: ${count}</li>`;
+		}
+		html += `</ul>`;
+
+		html += `<h2>Performance Snapshot</h2><ul>`;
+		for (const [label, value] of Object.entries(report.snapshot)) {
+			const warnLabels = [
+				label === "DOM Node Count" && parseInt(value) > 10000,
+				label === "Canvas Redraw Time" && parseFloat(value) > 100,
+				label === "Active Scene Tokens" && parseInt(value) > 100,
+				label === "World Actors" && parseInt(value) > 2000
+			];
+			const highlight = warnLabels.some(Boolean) ? " style=\"color: orange; font-weight: bold;\"" : "";
+			html += `<li${highlight}><strong>${label}:</strong> ${value}</li>`;
 		}
 		html += `</ul></div>`;
 
@@ -74,12 +93,8 @@ function showDialog() {
 			}
 		],
 		submit: async (action) => {
-			if (action === "refresh") {
-				showDialog(); // re-render the dialog with fresh data
-			}
-			if (action === "export") {
-				game.perfMonitor.exportReportAsJSON();
-			}
+			if (action === "refresh") showDialog();
+			if (action === "export") game.perfMonitor.exportReportAsJSON();
 		}
 	}).render({ force: true });
 }
@@ -99,9 +114,11 @@ function getHooksPerModule() {
 
 function getLibWrapperPatches() {
 	const map = {};
-	if (!globalThis.libWrapper) return map;
-	const wrappers = libWrapper.getWrappers();
-	for (const [key, data] of Object.entries(wrappers)) {
+	if (!globalThis.libWrapper || !libWrapper.registeredWrappers) {
+		console.warn("libWrapper does not expose patch data");
+		return map;
+	}
+	for (const [target, data] of libWrapper.registeredWrappers.entries()) {
 		const mod = data?.module || "unknown";
 		map[mod] = (map[mod] || 0) + 1;
 	}
@@ -118,14 +135,65 @@ function getSocketlibFunctions() {
 }
 
 function exportReportAsJSON() {
-	const data = generateReport();
-	const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = `fvtt-perf-report-${Date.now()}.json`;
-	document.body.appendChild(a);
-	a.click();
-	a.remove();
-	URL.revokeObjectURL(url);
+	generateReport().then(data => {
+		const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `fvtt-perf-report-${Date.now()}.json`;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		URL.revokeObjectURL(url);
+	});
+}
+
+async function generateSnapshot() {
+	const snapshot = {};
+
+	try {
+		if (performance?.memory?.usedJSHeapSize && performance.memory.totalJSHeapSize) {
+			snapshot["JS Heap Used"] = `${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB`;
+			snapshot["JS Heap Total"] = `${(performance.memory.totalJSHeapSize / 1048576).toFixed(2)} MB`;
+		} else {
+			snapshot["JS Heap Used"] = "Unavailable (Browser Restricted)";
+			snapshot["JS Heap Total"] = "Unavailable";
+		}
+	} catch (e) {
+		snapshot["JS Heap Used"] = "Unavailable (Error)";
+		snapshot["JS Heap Total"] = "Unavailable";
+	}
+
+	snapshot["DOM Node Count"] = document.querySelectorAll("*").length;
+
+	const hookKeys = Hooks?._hooks ? Object.keys(Hooks._hooks) : [];
+	snapshot["Hook Count"] = hookKeys.length;
+
+	const socketEvents = game.socket?._events ? Object.keys(game.socket._events).length : "Not Available";
+	snapshot["Socket Listeners"] = socketEvents;
+
+	let canvasTime = "Not Measured";
+	try {
+		const t0 = performance.now();
+		await canvas.draw();
+		const t1 = performance.now();
+		canvasTime = `${(t1 - t0).toFixed(1)} ms`;
+	} catch (e) {
+		canvasTime = "Error Measuring";
+	}
+	snapshot["Canvas Redraw Time"] = canvasTime;
+
+	snapshot["World Actors"] = game.actors.size;
+	snapshot["World Items"] = game.items.size;
+	snapshot["World Journals"] = game.journal.size;
+	snapshot["World Scenes"] = game.scenes.size;
+
+	if (canvas?.ready) {
+		const tokens = canvas.tokens.placeables;
+		snapshot["Active Scene Tokens"] = tokens.length;
+		const linkedActors = new Set(tokens.map(t => t.actor?.id).filter(Boolean));
+		snapshot["Active Scene Unique Actors"] = linkedActors.size;
+	}
+
+	return snapshot;
 }
