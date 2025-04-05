@@ -1,3 +1,6 @@
+let trackingInterval = null;
+let trackingData = [];
+
 Hooks.once("init", () => {
 	CONFIG.ChatCommands ??= {};
 	CONFIG.ChatCommands.perfReport = {
@@ -8,21 +11,20 @@ Hooks.once("init", () => {
 	};
 });
 
-Hooks.once("ready", () => {
+Hooks.on("ready", () => {
 	game.perfMonitor = {
 		showDialog,
 		generateReport,
+		generateSnapshot,
 		exportReportAsJSON,
-		generateSnapshot
+		startTracking,
+		stopTracking
 	};
 });
 
 async function generateReport() {
 	const report = {
 		timestamp: new Date().toISOString(),
-		hooksPerModule: getHooksPerModule(),
-		libWrapperPatches: getLibWrapperPatches(),
-		socketlibFunctions: getSocketlibFunctions(),
 		snapshot: await generateSnapshot()
 	};
 	return report;
@@ -30,57 +32,49 @@ async function generateReport() {
 
 async function showDialog() {
 	const report = await generateReport();
+	const isTracking = trackingInterval !== null;
 
-	const buildContent = (report) => {
-		let html = `<div class="perf-report-dialog" style="max-height: 60vh; overflow-y: auto;">`;
+	const groupA = ["JS Heap", "DOM Node Count", "Modules", "Canvas Redraw Time"];
+	const groupB = ["World Scenes", "World Actors", "World Items", "World Journals", "Active Scene Tokens/Actors"];
 
-		html += `<h2>Hooks Per Module</h2><ul>`;
-		for (const [mod, count] of Object.entries(report.hooksPerModule)) {
-			html += `<li><strong>${mod}</strong>: ${count}</li>`;
-		}
-		html += `</ul>`;
-
-		html += `<h2>libWrapper Patches</h2>`;
-		if (Object.keys(report.libWrapperPatches).length > 0) {
-			html += `<ul>`;
-			for (const [mod, count] of Object.entries(report.libWrapperPatches)) {
-				html += `<li><strong>${mod}</strong>: ${count}</li>`;
-			}
-			html += `</ul>`;
-		} else {
-			html += `<p><em>libWrapper did not expose patch info.</em></p>`;
-		}
-
-		html += `<h2>Socketlib Registrations</h2><ul>`;
-		for (const [mod, count] of Object.entries(report.socketlibFunctions)) {
-			html += `<li><strong>${mod}</strong>: ${count}</li>`;
-		}
-		html += `</ul>`;
-
-		html += `<h2>Performance Snapshot</h2><ul>`;
-		for (const [label, value] of Object.entries(report.snapshot)) {
-			const warnLabels = [
-				label === "DOM Node Count" && parseInt(value) > 10000,
-				label === "Canvas Redraw Time" && parseFloat(value) > 100,
-				label === "Active Scene Tokens" && parseInt(value) > 100,
-				label === "World Actors" && parseInt(value) > 2000
-			];
-			const highlight = warnLabels.some(Boolean) ? " style=\"color: orange; font-weight: bold;\"" : "";
-			html += `<li${highlight}><strong>${label}:</strong> ${value}</li>`;
-		}
-		html += `</ul></div>`;
-
-		return html;
-	};
 
 	new foundry.applications.api.DialogV2({
-		window: { title: "Performance Monitor" },
-		content: buildContent(report),
+		window: { title: "Performance Monitor", width: 650 },
+		content: `
+			<div class="perf-report-dialog" style="max-height: 60vh; overflow-y: auto;">
+				<h2>Performance Snapshot</h2>
+				<div style="display: flex; gap: 1rem; justify-content: space-between;">
+					<div style="flex: 1;">
+						<ul>
+							${groupA.map(label => {
+								const value = report.snapshot[label];
+								const highlight = getHighlightStyle(label, value);
+								return `<li style="${highlight}"><strong>${label}:</strong> ${value}</li>`;
+							}).join("")}
+						</ul>
+					</div>
+					<div style="flex: 1;">
+						<ul>
+							${groupB.map(label => {
+								const value = report.snapshot[label];
+								const highlight = getHighlightStyle(label, value);
+								return `<li style="${highlight}"><strong>${label}:</strong> ${value}</li>`;
+							}).join("")}
+						</ul>
+					</div>
+				</div>
+			</div>
+		`,
 		buttons: [
 			{
 				action: "refresh",
 				label: "Refresh",
 				icon: "fas fa-sync"
+			},
+			{
+				action: isTracking ? "stop" : "start",
+				label: isTracking ? "Stop Tracking" : "Start Tracking",
+				icon: isTracking ? "fas fa-stop" : "fas fa-play"
 			},
 			{
 				action: "export",
@@ -94,44 +88,61 @@ async function showDialog() {
 		],
 		submit: async (action) => {
 			if (action === "refresh") showDialog();
-			if (action === "export") game.perfMonitor.exportReportAsJSON();
+			if (action === "start") {
+				startTracking();
+				ui.notifications.info("Performance tracking started.");
+				showDialog();
+			}
+			if (action === "stop") {
+				stopTracking();
+				console.log("Performance tracking data:", trackingData);
+				ui.notifications.info("Performance tracking stopped. Data logged to console.");
+				showDialog();
+			}
+			if (action === "export") exportReportAsJSON();
+			if (action === "close") return;
 		}
-	}).render({ force: true });
+	}).render(true);
 }
 
-function getHooksPerModule() {
-	const map = {};
-	const hooks = Hooks?._hooks ?? {};
-	for (const [hookName, fns] of Object.entries(hooks)) {
-		if (!Array.isArray(fns)) continue;
-		for (const fn of fns) {
-			const mod = fn?.__moduleName || fn?.module || "unknown";
-			map[mod] = (map[mod] || 0) + 1;
-		}
+function getHighlightStyle(label, value) {
+	const numericValue = parseFloat(value);
+	switch (label) {
+		case "DOM Node Count":
+			if (numericValue > 20000) return "color: red; font-weight: bold;";
+			if (numericValue > 10000) return "color: orange; font-weight: bold;";
+			break;
+		case "Canvas Redraw Time":
+			if (numericValue > 200) return "color: red; font-weight: bold;";
+			if (numericValue > 100) return "color: orange; font-weight: bold;";
+			break;
+		case "Active Scene Summary":
+			const [tokens] = value.split("/").map(Number);
+			if (tokens > 200) return "color: red; font-weight: bold;";
+			if (tokens > 100) return "color: orange; font-weight: bold;";
+			break;
+		case "World Actors":
+			if (numericValue > 4000) return "color: red; font-weight: bold;";
+			if (numericValue > 2000) return "color: orange; font-weight: bold;";
+			break;
 	}
-	return map;
+	return "";
 }
 
-function getLibWrapperPatches() {
-	const map = {};
-	if (!globalThis.libWrapper || !libWrapper.registeredWrappers) {
-		console.warn("libWrapper does not expose patch data");
-		return map;
-	}
-	for (const [target, data] of libWrapper.registeredWrappers.entries()) {
-		const mod = data?.module || "unknown";
-		map[mod] = (map[mod] || 0) + 1;
-	}
-	return map;
+function startTracking() {
+	if (trackingInterval) return;
+	trackingData = [];
+
+	trackingInterval = setInterval(async () => {
+		const snapshot = await generateSnapshot();
+		trackingData.push({ timestamp: new Date().toISOString(), data: snapshot });
+	}, 5 * 60 * 1000);
 }
 
-function getSocketlibFunctions() {
-	const map = {};
-	if (!globalThis.socketlib) return map;
-	for (const [mod, api] of Object.entries(socketlib.registeredModules ?? {})) {
-		map[mod] = Object.keys(api?.functions ?? {}).length;
-	}
-	return map;
+function stopTracking() {
+	if (!trackingInterval) return;
+	clearInterval(trackingInterval);
+	trackingInterval = null;
 }
 
 function exportReportAsJSON() {
@@ -153,33 +164,32 @@ async function generateSnapshot() {
 
 	try {
 		if (performance?.memory?.usedJSHeapSize && performance.memory.totalJSHeapSize) {
-			snapshot["JS Heap Used"] = `${(performance.memory.usedJSHeapSize / 1048576).toFixed(2)} MB`;
-			snapshot["JS Heap Total"] = `${(performance.memory.totalJSHeapSize / 1048576).toFixed(2)} MB`;
+			const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(2);
+			const total = (performance.memory.totalJSHeapSize / 1048576).toFixed(2);
+			snapshot["JS Heap (used / total)"] = `${used} / ${total} MB`;
 		} else {
-			snapshot["JS Heap Used"] = "Unavailable (Browser Restricted)";
-			snapshot["JS Heap Total"] = "Unavailable";
+			snapshot["JS Heap"] = "Unavailable (Browser Restricted)";
 		}
 	} catch (e) {
-		snapshot["JS Heap Used"] = "Unavailable (Error)";
-		snapshot["JS Heap Total"] = "Unavailable";
+		snapshot["JS Heap"] = "Unavailable (Error)";
 	}
 
 	snapshot["DOM Node Count"] = document.querySelectorAll("*").length;
 
-	const hookKeys = Hooks?._hooks ? Object.keys(Hooks._hooks) : [];
-	snapshot["Hook Count"] = hookKeys.length;
+	const totalModules = game.modules.size;
+	const enabledModules = [...game.modules.values()].filter(m => m.active).length;
+	snapshot["Modules"] = `${enabledModules}/${totalModules}`;
 
-	const socketEvents = game.socket?._events ? Object.keys(game.socket._events).length : "Not Available";
-	snapshot["Socket Listeners"] = socketEvents;
-
-	let canvasTime = "Not Measured";
-	try {
-		const t0 = performance.now();
-		await canvas.draw();
-		const t1 = performance.now();
-		canvasTime = `${(t1 - t0).toFixed(1)} ms`;
-	} catch (e) {
-		canvasTime = "Error Measuring";
+	let canvasTime = "Skipped (Tracking)";
+	if (!trackingInterval) {
+		try {
+			const t0 = performance.now();
+			await canvas.draw();
+			const t1 = performance.now();
+			canvasTime = `${(t1 - t0).toFixed(1)} ms`;
+		} catch (e) {
+			canvasTime = "Error Measuring";
+		}
 	}
 	snapshot["Canvas Redraw Time"] = canvasTime;
 
@@ -189,10 +199,9 @@ async function generateSnapshot() {
 	snapshot["World Scenes"] = game.scenes.size;
 
 	if (canvas?.ready) {
-		const tokens = canvas.tokens.placeables;
-		snapshot["Active Scene Tokens"] = tokens.length;
-		const linkedActors = new Set(tokens.map(t => t.actor?.id).filter(Boolean));
-		snapshot["Active Scene Unique Actors"] = linkedActors.size;
+		const tokens = canvas.tokens.placeables.length;
+		const uniqueActors = new Set(canvas.tokens.placeables.map(t => t.actor?.id).filter(Boolean)).size;
+		snapshot["Active Scene Tokens/Actors"] = `${tokens}/${uniqueActors}`;
 	}
 
 	return snapshot;

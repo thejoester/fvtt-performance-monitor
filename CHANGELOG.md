@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.2] - 2025-04-04
+## Added
+
 ## [0.1.1] - 2025-04-04
 ### Fixed
 - **Module:** Still in development
