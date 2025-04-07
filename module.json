@@ -1,23 +1,25 @@
 {
-	"id": "fvtt-performance-monitor",
-	"name": "fvtt-performance-monitor",
-	"title": "Performance Monitor",
-	"description": "Logs and analyzes Foundry module performance, hook activity, and system load over time.",
-	"version": "0.1.2",
-	"authors": [
+    "id": "fvtt-performance-monitor",
+    "name": "fvtt-performance-monitor",
+    "title": "Performance Monitor",
+    "description": "Logs and analyzes Foundry module performance, hook activity, and system load over time.",
+    "version": "0.1.4",
+    "authors": [
         {
             "name": "The Joester",
             "discord": "thejoester",
-			"url": "https://github.com/thejoester",
+            "url": "https://github.com/thejoester",
             "flags": {}
         }
     ],
-	"esmodules": ["performance-monitor.js"],
-	"compatibility": {
-		"minimum": "12",
-		"verified": "12"
-	},
-	"packs": [
+    "esmodules": [
+        "performance-monitor.js"
+    ],
+    "compatibility": {
+        "minimum": "12",
+        "verified": "12"
+    },
+    "packs": [
         {
             "name": "performance-monitor-macros",
             "label": "Performance Monitor Macros",
@@ -29,16 +31,20 @@
             }
         }
     ],
-	"relationships": {
-		"recommends": [
-			{ "id": "lib-wrapper" },
-			{ "id": "socketlib" }
-		]
-	},
-	"manifest": "https://github.com/thejoester/fvtt-performance-monitor/releases/latest/download/module.json",
-	"download": "https://github.com/thejoester/fvtt-performance-monitor/releases/download/0.1.2/fvtt-performance-monitor.zip",
-	"license": "MIT",
-	"readme": "https://github.com/thejoester/fvtt-performance-monitor/README.md",
-	"bugs": "https://github.com/thejoester/fvtt-performance-monitor/issues",
-	"changelog": "https://github.com/thejoester/fvtt-performance-monitor/changelog.md"
+    "relationships": {
+        "recommends": [
+            {
+                "id": "lib-wrapper"
+            },
+            {
+                "id": "socketlib"
+            }
+        ]
+    },
+    "manifest": "https://github.com/thejoester/fvtt-performance-monitor/releases/latest/download/module.json",
+    "download": "https://github.com/thejoester/fvtt-performance-monitor/releases/download/0.1.4/fvtt-performance-monitor.zip",
+    "license": "MIT",
+    "readme": "https://github.com/thejoester/fvtt-performance-monitor/README.md",
+    "bugs": "https://github.com/thejoester/fvtt-performance-monitor/issues",
+    "changelog": "https://github.com/thejoester/fvtt-performance-monitor/changelog.md"
 }
