@@ -34,7 +34,7 @@ async function showDialog() {
 	const report = await generateReport();
 	const isTracking = trackingInterval !== null;
 
-	const groupA = ["JS Heap", "DOM Node Count", "Modules", "Canvas Redraw Time"];
+	const groupA = ["JS Heap (used / total)", "DOM Node Count", "Modules", "Canvas Redraw Time"];
 	const groupB = ["World Scenes", "World Actors", "World Items", "World Journals", "Active Scene Tokens/Actors"];
 
 
@@ -168,7 +168,7 @@ async function generateSnapshot() {
 			const total = (performance.memory.totalJSHeapSize / 1048576).toFixed(2);
 			snapshot["JS Heap (used / total)"] = `${used} / ${total} MB`;
 		} else {
-			snapshot["JS Heap"] = "Unavailable (Browser Restricted)";
+			snapshot["JS Heap (used / total)"] = "Unavailable (Browser Restricted)";
 		}
 	} catch (e) {
 		snapshot["JS Heap"] = "Unavailable (Error)";
